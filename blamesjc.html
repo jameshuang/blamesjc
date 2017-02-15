@@ -138,8 +138,8 @@ var gIndex = 0;
 var gCount = 0;
 function complainSjcFlight()
 {
-	//alert("onload");
 	var sjcTsArr;
+	var flightId;
 	while (true) {
 		var row = noiseTable.rows[gIndex++];
 		if (!row) {
@@ -152,9 +152,12 @@ function complainSjcFlight()
 			continue;
 		}
 		col = row.cells[0].textContent || row.cells[0].innerText
-		//alert(col);
 		var tsArr = parseTimestamp(col.replace(/\r?\n|\n/g, "").trim());
 		sjcTsArr = getSjcTsArr(tsArr);
+		flightId = tsArr["day"].concat(tsArr["hour"]).concat(tsArr["min"]).concat(tsArr["am"]);
+		if (gBlameFlights.indexOf(flightId) >= 0) {
+			continue;
+		}
 		break;
 	}
 
@@ -170,18 +173,18 @@ function complainSjcFlight()
 	doc.getElementById("form_aircrafttype").value = "Commercial Jet";
 	doc.getElementById("form_responserequired").value = "Y";
 	
-	doc.getElementById("form_comments").value = gBlameData.form_comments;
+	doc.getElementById("form_comments").value = gBlameUser.form_comments;
 	
-	doc.getElementById("form_name").value = gBlameData.form_name;
-	doc.getElementById("form_surname").value = gBlameData.form_surname;
-	doc.getElementById("form_address1").value = gBlameData.form_address1;
-	doc.getElementById("form_city").value = gBlameData.form_city;
-	doc.getElementById("form_state").value = gBlameData.form_state;
-	doc.getElementById("form_zipcode").value = gBlameData.form_zipcode;
-	doc.getElementById("form_homephone").value = gBlameData.form_homephone;
-	doc.getElementById("form_workphone").value = gBlameData.form_workphone;
-	doc.getElementById("form_cellphone").value = gBlameData.form_cellphone;
-	doc.getElementById("form_email").value = gBlameData.form_email;
+	doc.getElementById("form_name").value = gBlameUser.form_name;
+	doc.getElementById("form_surname").value = gBlameUser.form_surname;
+	doc.getElementById("form_address1").value = gBlameUser.form_address1;
+	doc.getElementById("form_city").value = gBlameUser.form_city;
+	doc.getElementById("form_state").value = gBlameUser.form_state;
+	doc.getElementById("form_zipcode").value = gBlameUser.form_zipcode;
+	doc.getElementById("form_homephone").value = gBlameUser.form_homephone;
+	doc.getElementById("form_workphone").value = gBlameUser.form_workphone;
+	doc.getElementById("form_cellphone").value = gBlameUser.form_cellphone;
+	doc.getElementById("form_email").value = gBlameUser.form_email;
 	
 	/*
 	doc.onload = reportSucc;
@@ -205,15 +208,15 @@ function complainSjcFlight()
 	var xhr = new XMLHttpRequest();
 	xhr.open("POST", sjcURL);
 	xhr.onload = function() {
-		//alert(xhr.response.innerHTML);
-		//alert("succ");
 		gCount++;
-		loadSjcPage();
+		gBlameFlights.push(flightId);
+		saveBlameFlights();
+		setTimeout(loadSjcPage, 5000);
+		//loadSjcPage();
 	}
 	xhr.onerror = function() {
-		//alert(xhr.response.innerHTML);
-		//alert("fail");
-		loadSjcPage();
+		setTimeout(loadSjcPage, 5000);
+		//loadSjcPage();
 	}
 	xhr.send(formData);	
 }
@@ -229,8 +232,19 @@ function reportFail()
 	alert("fail");
 }
 */
-var gBlameData = JSON.parse("{}");
-function saveProfile()
+var gBlameUserFile = "blame-user.dat";
+var gBlameUser = JSON.parse("{}");
+var gBlameFlightsFile = "blame-flights.dat";
+var gBlameFlights = JSON.parse("[]");
+
+function saveBlameData()
+{
+	saveBlameUser();
+	saveBlameFlights();
+	return;
+}
+
+function saveBlameUser()
 {
 	var obj = JSON.parse("{}");
 	obj.form_comments = document.getElementById("form_comments").value;
@@ -245,16 +259,29 @@ function saveProfile()
 	obj.form_cellphone = document.getElementById("form_cellphone").value;
 	obj.form_email = document.getElementById("form_email").value;
 	var text = JSON.stringify(obj);
-	localStorage.setItem("blamesjc.dat", text);
-	//alert("saveProfile done");
-	gBlameData = obj;
+	localStorage.setItem(gBlameUserFile, text);
+	gBlameUser = obj;
+	return;
+}
+
+function saveBlameFlights()
+{
+	var text = JSON.stringify(gBlameFlights);
+	localStorage.setItem(gBlameFlightsFile, text);
 	return;
 }
 
 function loadBlameData()
 {
+	loadBlameUser();
+	loadBlameFlights();
+	return;
+}
+
+function loadBlameUser()
+{
 	try {
-		var text = localStorage.getItem("blamesjc.dat");
+		var text = localStorage.getItem(gBlameUserFile);
 		var obj = JSON.parse(text);
 		document.getElementById("form_comments").value = obj.form_comments;
 		document.getElementById("form_name").value = obj.form_name;
@@ -267,22 +294,36 @@ function loadBlameData()
 		document.getElementById("form_workphone").value = obj.form_workphone;
 		document.getElementById("form_cellphone").value = obj.form_cellphone;
 		document.getElementById("form_email").value = obj.form_email;
-		gBlameData = obj;
+		gBlameUser = obj;
+	} catch (e) {}
+	return;
+}
+
+function loadBlameFlights()
+{
+	var list = JSON.parse("[]");
+	try {
+		var text = localStorage.getItem(gBlameFlightsFile);
+		list = JSON.parse(text);
+		if (list.length > 1000) {
+			list.splice(0, list.length - 1000);
+		}
+		gBlameFlights = list;
 	} catch (e) {}
 	return;
 }
 
 function startSjcComplaints()
 {
+	// Check profile
+	//...
+	saveBlameUser();
+
 	// Check if CORS is disabled
 	if (!noiseLoaded) {
 		alert("It seems that you have not turned on the CORS extension. Please refer to the following page to turn it on then reload this page.");
 		return;
 	}
-
-	// Check profile
-	//...
-	saveProfile();
 
 	// Start from 1 to skip title row of the noise flights table
 	gIndex = 1;
@@ -294,7 +335,7 @@ function startSjcComplaints()
 	/*
 	// Starts from 1 to skip the first row consisting of column titles
 	for (var i = 1, row; row = noiseTable.rows[i]; i++) {
-		/// for (var j = 0, col; col = row.cells[j]; j++) {}
+		// for (var j = 0, col; col = row.cells[j]; j++) {}
 		var col = row.cells[4].textContent || row.cells[4].innerText
 		var airport = col.replace(/\r?\n|\n/g, "").trim();
 		if (airport == "KSJC" || airport == "SJC") {
@@ -304,34 +345,6 @@ function startSjcComplaints()
 		return;
 	}
 	*/
-	
-	//var doc = (new DOMParser).parseFromString(xhr.responseText, "text/html");
-/*	
-	var doc = document.implementation.createHTMLDocument();
-	doc.open()
-	doc.write("<html><title>mytitle</title><h1>Hello World!</h1><p>Have a nice day!</p></html>")
-//	alert("b")
-	//doc.close()
-//	alert(doc.title)
-	var table = doc.getElementById("flightTable");
-	var r=0;
-	while(row=table.rows[r])
-	{
-		r++;
-	}
-
-alert("rows:".concat(r.toString()));
-alert("done")
-*/
-
-
-
-
-/*
-	alert("Submitting complaints...")
-    document.forms["myform"].submit();
-*/
-
 }
 
 </script>
