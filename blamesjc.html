@@ -7,6 +7,12 @@ Chrome Extension to turn on/off CORS:
 https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&cad=rja&uact=8&ved=0ahUKEwj31q6WjIbSAhXIx1QKHesJBNwQFgghMAE&url=https%3A%2F%2Fchrome.google.com%2Fwebstore%2Fdetail%2Fcors-toggle%2Fomcncfnpmcabckcddookmnajignpffnh%3Fhl%3Den&usg=AFQjCNEM_3xSho_xI5I2JiWwWY40Pj2P8Q&sig2=Pfr8kB5DsL09Cyov8H6Kag&bvm=bv.146496531,d.cGw
 */
 
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
+}
+
 /* Timestamp format: mm/dd/yyyy hh:mm AM|PM */
 function parseTimestamp(ts)
 {
@@ -139,6 +145,7 @@ var gCount = 0;
 function complainSjcFlight()
 {
 	var sjcTsArr;
+	var flightTime;
 	var flightId;
 	while (true) {
 		var row = noiseTable.rows[gIndex++];
@@ -152,7 +159,8 @@ function complainSjcFlight()
 			continue;
 		}
 		col = row.cells[0].textContent || row.cells[0].innerText
-		var tsArr = parseTimestamp(col.replace(/\r?\n|\n/g, "").trim());
+		flightTime = col.replace(/\r?\n|\n/g, "").trim();
+		var tsArr = parseTimestamp(flightTime);
 		sjcTsArr = getSjcTsArr(tsArr);
 		flightId = tsArr["day"].concat(tsArr["hour"]).concat(tsArr["min"]).concat(tsArr["am"]);
 		if (gBlameFlights.indexOf(flightId) >= 0) {
@@ -211,11 +219,12 @@ function complainSjcFlight()
 		gCount++;
 		gBlameFlights.push(flightId);
 		saveBlameFlights();
-		setTimeout(loadSjcPage, 5000);
+		document.getElementById("form_flights").value = document.getElementById("form_flights").value.concat("\n").concat(flightTime);
+		setTimeout(loadSjcPage, getRandomInt(15,30) * 1000);
 		//loadSjcPage();
 	}
 	xhr.onerror = function() {
-		setTimeout(loadSjcPage, 5000);
+		setTimeout(loadSjcPage, getRandomInt(15,30) * 1000);
 		//loadSjcPage();
 	}
 	xhr.send(formData);	
@@ -368,7 +377,7 @@ Click the extension link above, then click on the "Save" button. After that, mov
 </ul>
 
 <h2>Your Complaint Message:</h2>
-<textarea id=form_comments name=comments rows=8 cols=50 class=resizable maxlength="10000" onblur="validate('comments')"></textarea>
+<textarea id=form_comments name=comments rows=4 cols=50 class=resizable maxlength="10000" onblur="validate('comments')"></textarea>
 
 <!--
 <form id="flightForm" method="post">
@@ -569,6 +578,8 @@ float:left;
 
 </form>
 </div>
+<h2>Complained Flights:</h2>
+<textarea id=form_flights rows=4 cols=40 class=resizable maxlength="100" disabled>Complained flights:</textarea>
 </body>
 <script type="text/javascript">
 loadBlameData();
