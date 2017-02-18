@@ -1,361 +1,7 @@
 <html>
 <head>
 <script type="text/javascript">
-
-/*
-Chrome Extension to turn on/off CORS:
-https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&cad=rja&uact=8&ved=0ahUKEwj31q6WjIbSAhXIx1QKHesJBNwQFgghMAE&url=https%3A%2F%2Fchrome.google.com%2Fwebstore%2Fdetail%2Fcors-toggle%2Fomcncfnpmcabckcddookmnajignpffnh%3Fhl%3Den&usg=AFQjCNEM_3xSho_xI5I2JiWwWY40Pj2P8Q&sig2=Pfr8kB5DsL09Cyov8H6Kag&bvm=bv.146496531,d.cGw
-*/
-
-function getRandomInt(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min)) + min;
-}
-
-/* Timestamp format: mm/dd/yyyy hh:mm AM|PM */
-function parseTimestamp(ts)
-{
-	var arr = [];
-	var date_re = /^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(20)\d{2}$/;
-	var time_re = /^(0[1-9]|1[0-2]):([0-5][0-9])$/;
-	
-	var date_time_am = ts.split(" ");
-	// Date
-	if (!date_time_am[0]) return arr;
-	if (!(date_re.test(date_time_am[0]))) {
-		return arr;
-	}	
-	var dmy = date_time_am[0].split("/");
-	var month = dmy[0];
-	var day = dmy[1];
-	var year = dmy[2];
-	if (!day || !month || !year) return arr;
-	
-	// Time
-	if (!date_time_am[1]) return arr;
-	if (!(time_re.test(date_time_am[1]))) {
-		//alert(date_time_am[1]);
-		return arr;
-	}
-	var hm = date_time_am[1].split(":");
-	var hour = hm[0];
-	var min = hm[1];
-	if (!hour || !min) return arr;
-	
-	// AM/PM
-	var am = date_time_am[2];
-	if (!am) return arr;
-	am = am.toLowerCase();
-	if (am !== "am" && am !== "pm") return arr;
-	
-	arr["month"] = month;
-	arr["day"] = day;
-	arr["year"] = year;
-	arr["hour"] = hour;
-	arr["min"] = min;
-	arr["am"] = am;
-//	alert(arr["month"].concat("/").concat(arr["day"]).concat("/").concat(arr["year"]));
-	return arr;
-}
-
-function getSjcTsArr(tsArr)
-{
-	var arr = [];
-	arr["month"] = parseInt(tsArr["month"], 10);
-	arr["day"] = parseInt(tsArr["day"], 10);
-	arr["year"] = parseInt(tsArr["year"], 10);
-	arr["hour"] = parseInt(tsArr["hour"], 10);
-	arr["min"] = parseInt(tsArr["min"], 10);
-	if (tsArr["am"] == "am") {
-		arr["am"] = true;
-	}
-	else {
-		arr["am"] = false;
-	}
-	
-	var res = [];
-	res["month"] = arr["month"].toString();
-	res["day"] = arr["day"].toString();
-	res["year"] = arr["year"].toString();
-	if (arr["am"]) {
-		if (arr["hour"] == 12) {
-			res["hour"] = 0;
-		}
-		else {
-			res["hour"] = arr["hour"].toString();
-		}
-	}
-	else if (arr["hour"] == 12) {
-		res["hour"] = "12";
-	}
-	else {
-		res["hour"] = (arr["hour"] + 12).toString();
-	}
-	res["min"] = arr["min"].toString();
-	//alert(res["month"].concat("/").concat(res["day"]).concat("/").concat(res["year"]));
-	return res;
-}
-
-/// Noise flights page
-var noiseURL = "http://www.overheadairplanes.com";
-//var noiseURL = "http://localhost/smss-flights.html";
-//var noiseURL = "http://localhost/smss-single-flight.html";
-var noise = new XMLHttpRequest();
-var noiseLoaded = false;
-var noiseTable;
-function loadNoisePage()
-{
-	try
-	{
-		noise.open("GET", noiseURL);
-		noise.onload = function () {
-			var noiseDoc = document.implementation.createHTMLDocument();
-			noiseDoc.open();
-			noiseDoc.write(noise.response);
-			noiseTable = noiseDoc.getElementsByTagName("table")[0];
-			noiseLoaded = true;
-		}
-		noise.send();
-	}
-	catch (e) {}
-}
-
-/// SJC complaint web page
-var sjcURL = "https://complaints.bksv.com/sjc6";
-//var sjcURL = "http://www.google.com/";
-var sjc = new XMLHttpRequest();
-var sjcLoaded = false;
-function loadSjcPage()
-{
-	//alert("loading sjc page ...")
-	try
-	{
-		sjc.open("GET", sjcURL);
-		sjc.onload = complainSjcFlight;
-		sjc.send();
-		//alert("sent request");
-	}
-	catch (e) {}
-}
-
-/// Complain
-var gIndex = 0;
-var gCount = 0;
-function complainSjcFlight()
-{
-	var sjcTsArr;
-	var flightTime;
-	var flightId;
-	while (true) {
-		var row = noiseTable.rows[gIndex++];
-		if (!row) {
-			alert("You have filed ".concat(gCount.toString()).concat(" complaints."));
-			return; // Reached the bottom of the noise table
-		}
-		var col = row.cells[4].textContent || row.cells[4].innerText
-		var airport = col.replace(/\r?\n|\n/g, "").trim();
-		if (airport !== "KSJC" && airport !== "SJC") {
-			continue;
-		}
-		col = row.cells[0].textContent || row.cells[0].innerText
-		flightTime = col.replace(/\r?\n|\n/g, "").trim();
-		var tsArr = parseTimestamp(flightTime);
-		sjcTsArr = getSjcTsArr(tsArr);
-		flightId = tsArr["day"].concat(tsArr["hour"]).concat(tsArr["min"]).concat(tsArr["am"]);
-		if (gBlameFlights.indexOf(flightId) >= 0) {
-			continue;
-		}
-		break;
-	}
-
-	var doc = document.implementation.createHTMLDocument();
-	doc.open();
-	doc.write(sjc.response);
-	
-	doc.getElementById("form_month").value = sjcTsArr["month"];
-	doc.getElementById("form_day").value = sjcTsArr["day"];
-	doc.getElementById("form_year").value = sjcTsArr["year"];
-	doc.getElementById("form_hour").value = sjcTsArr["hour"];
-	doc.getElementById("form_min").value = sjcTsArr["min"];
-	doc.getElementById("form_aircrafttype").value = "Commercial Jet";
-	doc.getElementById("form_responserequired").value = "Y";
-	
-	doc.getElementById("form_comments").value = gBlameUser.form_comments;
-	
-	doc.getElementById("form_name").value = gBlameUser.form_name;
-	doc.getElementById("form_surname").value = gBlameUser.form_surname;
-	doc.getElementById("form_address1").value = gBlameUser.form_address1;
-	doc.getElementById("form_city").value = gBlameUser.form_city;
-	doc.getElementById("form_state").value = gBlameUser.form_state;
-	doc.getElementById("form_zipcode").value = gBlameUser.form_zipcode;
-	doc.getElementById("form_homephone").value = gBlameUser.form_homephone;
-	doc.getElementById("form_workphone").value = gBlameUser.form_workphone;
-	doc.getElementById("form_cellphone").value = gBlameUser.form_cellphone;
-	doc.getElementById("form_email").value = gBlameUser.form_email;
-	
-	/*
-	doc.onload = reportSucc;
-	doc.onerror = reportFail;
-	// SJC form's button is named as 'submit'.
-	//doc.getElementById("form").submit();
-	///document.createElement('form').submit.call(document.getElementById("form"));
-	//doc.getElementById("submit").onclick();
-	var elem = doc.getElementById("form").submit;
-	if (typeof elem.onclick == "function") {
-		elem.onclick.apply(elem);
-	}	
-	alert("submitted");
-	*/
-	
-	
-	/// Retrieving form data from a form
-	/// https://developer.mozilla.org/en-US/docs/Web/API/FormData/Using_FormData_Objects
-	
-	var formData = new FormData(doc.getElementById("form"));
-	var xhr = new XMLHttpRequest();
-	xhr.open("POST", sjcURL);
-	xhr.onload = function() {
-		gCount++;
-		gBlameFlights.push(flightId);
-		saveBlameFlights();
-		document.getElementById("form_flights").value = document.getElementById("form_flights").value.concat("\n").concat(flightTime);
-		setTimeout(loadSjcPage, getRandomInt(15,30) * 1000);
-		//loadSjcPage();
-	}
-	xhr.onerror = function() {
-		setTimeout(loadSjcPage, getRandomInt(15,30) * 1000);
-		//loadSjcPage();
-	}
-	xhr.send(formData);	
-}
-
-/*
-function reportSucc()
-{
-	alert("succ");
-}
-
-function reportFail()
-{
-	alert("fail");
-}
-*/
-var gBlameUserFile = "blame-user.dat";
-var gBlameUser = JSON.parse("{}");
-var gBlameFlightsFile = "blame-flights.dat";
-var gBlameFlights = JSON.parse("[]");
-
-function saveBlameData()
-{
-	saveBlameUser();
-	saveBlameFlights();
-	return;
-}
-
-function saveBlameUser()
-{
-	var obj = JSON.parse("{}");
-	obj.form_comments = document.getElementById("form_comments").value;
-	obj.form_name = document.getElementById("form_name").value;
-	obj.form_surname = document.getElementById("form_surname").value;
-	obj.form_address1 = document.getElementById("form_address1").value;
-	obj.form_city = document.getElementById("form_city").value;
-	obj.form_state = document.getElementById("form_state").value;
-	obj.form_zipcode = document.getElementById("form_zipcode").value;
-	obj.form_homephone = document.getElementById("form_homephone").value;
-	obj.form_workphone = document.getElementById("form_workphone").value;
-	obj.form_cellphone = document.getElementById("form_cellphone").value;
-	obj.form_email = document.getElementById("form_email").value;
-	var text = JSON.stringify(obj);
-	localStorage.setItem(gBlameUserFile, text);
-	gBlameUser = obj;
-	return;
-}
-
-function saveBlameFlights()
-{
-	var text = JSON.stringify(gBlameFlights);
-	localStorage.setItem(gBlameFlightsFile, text);
-	return;
-}
-
-function loadBlameData()
-{
-	loadBlameUser();
-	loadBlameFlights();
-	return;
-}
-
-function loadBlameUser()
-{
-	try {
-		var text = localStorage.getItem(gBlameUserFile);
-		var obj = JSON.parse(text);
-		document.getElementById("form_comments").value = obj.form_comments;
-		document.getElementById("form_name").value = obj.form_name;
-		document.getElementById("form_surname").value = obj.form_surname;
-		document.getElementById("form_address1").value = obj.form_address1;
-		document.getElementById("form_city").value = obj.form_city;
-		document.getElementById("form_state").value = obj.form_state;
-		document.getElementById("form_zipcode").value = obj.form_zipcode;
-		document.getElementById("form_homephone").value = obj.form_homephone;
-		document.getElementById("form_workphone").value = obj.form_workphone;
-		document.getElementById("form_cellphone").value = obj.form_cellphone;
-		document.getElementById("form_email").value = obj.form_email;
-		gBlameUser = obj;
-	} catch (e) {}
-	return;
-}
-
-function loadBlameFlights()
-{
-	var list = JSON.parse("[]");
-	try {
-		var text = localStorage.getItem(gBlameFlightsFile);
-		list = JSON.parse(text);
-		if (list.length > 1000) {
-			list.splice(0, list.length - 1000);
-		}
-		gBlameFlights = list;
-	} catch (e) {}
-	return;
-}
-
-function startSjcComplaints()
-{
-	// Check profile
-	//...
-	saveBlameUser();
-
-	// Check if CORS is disabled
-	if (!noiseLoaded) {
-		alert("It seems that you have not turned on the CORS extension. Please refer to the following page to turn it on then reload this page.");
-		return;
-	}
-
-	// Start from 1 to skip title row of the noise flights table
-	gIndex = 1;
-	
-	// Load SJC complaint page
-	loadSjcPage();
-	//alert("loading sjc...");
-
-	/*
-	// Starts from 1 to skip the first row consisting of column titles
-	for (var i = 1, row; row = noiseTable.rows[i]; i++) {
-		// for (var j = 0, col; col = row.cells[j]; j++) {}
-		var col = row.cells[4].textContent || row.cells[4].innerText
-		var airport = col.replace(/\r?\n|\n/g, "").trim();
-		if (airport == "KSJC" || airport == "SJC") {
-			col = row.cells[0].textContent || row.cells[0].innerText
-			complainSjcFlight(col.replace(/\r?\n|\n/g, "").trim());
-		}
-		return;
-	}
-	*/
-}
-
+function validate(a){if("form_altitude"==a){var b=parseInt(document.getElementById("form_altitude").value,10);b?b<1e3?document.getElementById("form_altitude").value="1000":b>8e3&&(document.getElementById("form_altitude").value="8000"):document.getElementById("form_altitude").value="5000"}else if("form_limit"==a){var c=parseInt(document.getElementById("form_limit").value,10);c?c<1?document.getElementById("form_limit").value="1":c>100&&(document.getElementById("form_limit").value="100"):document.getElementById("form_limit").value="5"}else if("form_timetype"==a){var d=document.getElementById("form_timetype").value;"any"==d?(document.getElementById("form_timex").style.visibility="hidden",document.getElementById("form_timey").style.visibility="hidden"):"before"==d||"after"==d?(document.getElementById("form_timex").style.visibility="visible",document.getElementById("form_timey").style.visibility="hidden","after"==d?document.getElementById("form_timex").value="22":document.getElementById("form_timex").value="8"):"btw"!=d&&"notbtw"!=d||(document.getElementById("form_timex").style.visibility="visible",document.getElementById("form_timey").style.visibility="visible",document.getElementById("form_timex").value="8",document.getElementById("form_timey").value="22")}}function getRandomInt(a,b){return a=Math.ceil(a),b=Math.floor(b),Math.floor(Math.random()*(b-a))+a}function parseTimestamp(a){var b=[],c=/^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(20)\d{2}$/,d=/^(0[1-9]|1[0-2]):([0-5][0-9])$/,e=a.split(" ");if(!e[0])return b;if(!c.test(e[0]))return b;var f=e[0].split("/"),g=f[0],h=f[1],i=f[2];if(!h||!g||!i)return b;if(!e[1])return b;if(!d.test(e[1]))return b;var j=e[1].split(":"),k=j[0],l=j[1];if(!k||!l)return b;var m=e[2];return m?(m=m.toLowerCase(),"am"!==m&&"pm"!==m?b:(b.month=g,b.day=h,b.year=i,b.hour=k,b.min=l,b.am=m,b)):b}function getSjcTsArr(a){var b=[];b.month=parseInt(a.month,10),b.day=parseInt(a.day,10),b.year=parseInt(a.year,10),b.hour=parseInt(a.hour,10),b.min=parseInt(a.min,10),"am"==a.am?b.am=!0:b.am=!1;var c=[];c.month=b.month.toString(),c.day=b.day.toString(),c.year=b.year.toString(),b.am?12==b.hour?c.hour=0:c.hour=b.hour.toString():12==b.hour?c.hour="12":c.hour=(b.hour+12).toString();var d=getRandomInt(-1,2),e=d+b.min;return(e<0||e>59)&&(e=b.min),c.min=e.toString(),c}function loadNoisePage(){try{noise.open("GET",noiseURL),noise.onload=function(){var a=document.implementation.createHTMLDocument();a.open(),a.write(noise.response),noiseTable=a.getElementsByTagName("table")[0],noiseLoaded=!0},noise.send()}catch(a){}}function loadSjcPage(){try{sjc.open("GET",sjcURL),sjc.onload=complainSjcFlight,sjc.send()}catch(a){}}function fini(){var a="You have filed ".concat(gCount.toString()).concat(" complaints.");document.getElementById("form_flights").value=document.getElementById("form_flights").value.concat("\n").concat(a)}function complainSjcFlight(){for(var a,b,c;;){if(gIndex<=0)return void fini();var d=noiseTable.rows[gIndex--],e=d.cells[4].textContent||d.cells[4].innerText,f=e.replace(/\r?\n|\n/g,"").trim();if("KSJC"===f||"SJC"===f){e=d.cells[6].textContent||d.cells[6].innerText,e=e.replace(/\r?\n|\n/g,"").trim();var g=parseInt(e,10);if(!(g>=parseInt(document.getElementById("form_altitude").value,10))){e=d.cells[0].textContent||d.cells[0].innerText,b=e.replace(/\r?\n|\n/g,"").trim();var h=parseTimestamp(b);if(a=getSjcTsArr(h),c=h.day.concat(h.hour).concat(h.min).concat(h.am),!(gBlameFlights.indexOf(c)>=0)){var i=parseInt(a.hour,10),j=parseInt(document.getElementById("form_timex").value,10),k=parseInt(document.getElementById("form_timey").value,10),l=document.getElementById("form_timetype").value;if(!("before"==l&&i>=j||"after"==l&&i<j||"btw"==l&&(i<j||i>=k)||"notbtw"==l&&i>=j&&i<k))break}}}}var m=document.implementation.createHTMLDocument();m.open(),m.write(sjc.response),m.getElementById("form_month").value=a.month,m.getElementById("form_day").value=a.day,m.getElementById("form_year").value=a.year,m.getElementById("form_hour").value=a.hour,m.getElementById("form_min").value=a.min,m.getElementById("form_aircrafttype").value="Commercial Jet",m.getElementById("form_responserequired").value="Y",m.getElementById("form_comments").value=gBlameUser.form_comments,m.getElementById("form_name").value=gBlameUser.form_name,m.getElementById("form_surname").value=gBlameUser.form_surname,m.getElementById("form_address1").value=gBlameUser.form_address1,m.getElementById("form_city").value=gBlameUser.form_city,m.getElementById("form_state").value=gBlameUser.form_state,m.getElementById("form_zipcode").value=gBlameUser.form_zipcode,m.getElementById("form_homephone").value=gBlameUser.form_homephone,m.getElementById("form_workphone").value=gBlameUser.form_workphone,m.getElementById("form_cellphone").value=gBlameUser.form_cellphone,m.getElementById("form_email").value=gBlameUser.form_email;var n=new FormData(m.getElementById("form")),o=new XMLHttpRequest;o.open("POST",sjcURL),o.onload=function(){gCount++,gBlameFlights.push(c),saveBlameFlights(),document.getElementById("form_flights").value=document.getElementById("form_flights").value.concat("\n").concat(b),gCount>=parseInt(document.getElementById("form_limit").value,10)?fini():setTimeout(loadSjcPage,1e3*getRandomInt(15,30))},o.onerror=function(){setTimeout(loadSjcPage,1e3*getRandomInt(15,30))},o.send(n)}function saveBlameData(){saveBlameUser(),saveBlameFlights()}function saveBlameUser(){var a=JSON.parse("{}");a.form_comments=document.getElementById("form_comments").value,a.form_name=document.getElementById("form_name").value,a.form_surname=document.getElementById("form_surname").value,a.form_address1=document.getElementById("form_address1").value,a.form_city=document.getElementById("form_city").value,a.form_state=document.getElementById("form_state").value,a.form_zipcode=document.getElementById("form_zipcode").value,a.form_homephone=document.getElementById("form_homephone").value,a.form_workphone=document.getElementById("form_workphone").value,a.form_cellphone=document.getElementById("form_cellphone").value,a.form_email=document.getElementById("form_email").value,a.form_altitude=document.getElementById("form_altitude").value,a.form_timetype=document.getElementById("form_timetype").value,a.form_timex=document.getElementById("form_timex").value,a.form_timey=document.getElementById("form_timey").value;var b=JSON.stringify(a);localStorage.setItem(gBlameUserFile,b),gBlameUser=a}function saveBlameFlights(){var a=JSON.stringify(gBlameFlights);localStorage.setItem(gBlameFlightsFile,a)}function loadBlameData(){loadBlameUser(),loadBlameFlights()}function loadBlameUser(){try{var a=localStorage.getItem(gBlameUserFile),b=JSON.parse(a);b&&(document.getElementById("form_comments").value=b.form_comments,document.getElementById("form_name").value=b.form_name,document.getElementById("form_surname").value=b.form_surname,document.getElementById("form_address1").value=b.form_address1,document.getElementById("form_city").value=b.form_city,document.getElementById("form_state").value=b.form_state,document.getElementById("form_zipcode").value=b.form_zipcode,document.getElementById("form_homephone").value=b.form_homephone,document.getElementById("form_workphone").value=b.form_workphone,document.getElementById("form_cellphone").value=b.form_cellphone,document.getElementById("form_email").value=b.form_email,b.form_altitude&&(document.getElementById("form_altitude").value=b.form_altitude),b.form_timex&&(document.getElementById("form_timex").value=b.form_timex),b.form_timey&&(document.getElementById("form_timey").value=b.form_timey),b.form_timetype&&(document.getElementById("form_timetype").value=b.form_timetype,validate("form_timetype")),gBlameUser=b)}catch(a){}}function loadBlameFlights(){var a=JSON.parse("[]");try{var b=localStorage.getItem(gBlameFlightsFile);a=JSON.parse(b),a.length>1e3&&a.splice(0,a.length-1e3),gBlameFlights=a}catch(a){}}function startSjcComplaints(){return saveBlameUser(),noiseLoaded?(gIndex=noiseTable.rows.length-1,gCount=0,void loadSjcPage()):void alert("It seems that you have not turned on the CORS extension. Please refer to the following page to turn it on then reload this page.")}var noiseURL="http://www.overheadairplanes.com",noise=new XMLHttpRequest,noiseLoaded=!1,noiseTable,sjcURL="https://complaints.bksv.com/sjc6",sjc=new XMLHttpRequest,sjcLoaded=!1,gIndex=0,gCount=0,gBlameUserFile="blame-user.dat",gBlameUser=JSON.parse("{}"),gBlameFlightsFile="blame-flights.dat",gBlameFlights=JSON.parse("[]");
 </script>
 </head>
 <body class="bodyclass" id="bodyid">
@@ -379,8 +25,6 @@ After that, come back to this complaint page / tab. There shall be a big C shape
 </p>
 </ul>
 
-<h2>Complaint Message:</h2>
-<textarea id=form_comments name=comments rows=4 cols=50 class=resizable maxlength="10000" onblur="validate('comments')"></textarea>
 
 <!--
 <form id="flightForm" method="post">
@@ -566,6 +210,7 @@ float:left;
 }
     </style>
                                         
+<!--
  <li class="oneline"> <div class=label> <label for=form_name> First name <span class=required id=form_name_required> (required) </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_name_container> <input id=form_name name=name type=text class=halfwidth value="" maxlength="62" onblur="validate('name')"> <div class=validation id=form_name_validation>   </div> </div> </div> </li>
  <br/><li class="oneline"> <div class=label> <label for=form_surname> Last name <span class=required id=form_surname_required> (required) </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_surname_container> <input id=form_surname name=surname type=text class=halfwidth value="" maxlength="62" onblur="validate('surname')"> <div class=validation id=form_surname_validation>   </div> </div> </div> </li> 
  <br/><li class="oneline"> <div class=label> <label for=form_address1> Address <span class=required id=form_address1_required> (required) </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_address1_container> <i id=address1_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_address1 name=address1 type=text class=halfwidth value="" maxlength="124" onblur="validate('address1'); checkAddress()"> <div class=validation id=form_address1_validation>   </div> </div> </div> </li>        
@@ -575,14 +220,212 @@ float:left;
 <option value="CA">CA</option>
 </select> <i id=state_spinner style="display:none" class="fa fa-spinner fa-pulse"></i> <div class=validation id=form_state_validation>   </div> </div> </div> </li>                                     
 <br/><li class="oneline"> <div class=label> <label for=form_zipcode> Zip code <span class=required id=form_zipcode_required> (required) </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_zipcode_container> <i id=zipcode_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_zipcode name=zipcode type=text class="halfwidth zipcode" value="" maxlength="24" onblur="validate('zipcode'); checkAddress()"><br> <div class=validation id=form_zipcode_validation>   </div> </div> </div> </li>                                       
-<br/><li class="oneline" id=contactSection> <div class="label topAlign"> Contacts:</div> <div class=field> <div id=form_contact_container class="floatingBlock "> <table class=contactsTable>   <tr id=form_homephone_container class="fullwidth "> <td class=label> <label for=form_homephone> Home phone <span class=required id=form_homephone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_homephone name=homephone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_homephone_validation>   </div> </td> </tr>         <tr id=form_workphone_container class="fullwidth "> <td class=label> <label for=form_workphone> Work phone <span class=required id=form_workphone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_workphone name=workphone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('workphone', '#form_workphone_container'); validate('contact')"> </td> <td> <div class=validation id=form_workphone_validation>   </div> </td> </tr>         <tr id=form_cellphone_container class="fullwidth "> <td class=label> <label for=form_cellphone> Cell phone <span class=required id=form_cellphone_required>  </span> </label> </td>  <td class=phoneNumber colspan="1"> <input id=form_cellphone name=cellphone type=tel class=halfwidth value="" maxlength="62" onblur="validate('cellphone'); validate('contact')"> </td> <td> <div class=validation id=form_cellphone_validation>   </div> </td> </tr>          <tr id=form_email_container class="fullwidth "> <td class=label> <label for=form_email> Email <span class=required id=form_email_required>  </span> </label> </td>  <td class=phoneNumber colspan="1"> <input id=form_email name=email type=email class=halfwidth value="" maxlength="64" onblur="validate('email'); validate('contact')"> </td> <td> <div class=validation id=form_email_validation>   </div> </td> </tr>   </table> </div> <div class=validation id=form_contact_validation>  </div> </div> </li>
+<br/><li class="oneline" id=contactSection> <div class=field> <div id=form_contact_container class="floatingBlock "> <table class=contactsTable>   <tr id=form_homephone_container class="fullwidth "> <td class=label> <label for=form_homephone> Home phone <span class=required id=form_homephone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_homephone name=homephone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_homephone_validation>   </div> </td> </tr>         <tr id=form_workphone_container class="fullwidth "> <td class=label> <label for=form_workphone> Work phone <span class=required id=form_workphone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_workphone name=workphone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('workphone', '#form_workphone_container'); validate('contact')"> </td> <td> <div class=validation id=form_workphone_validation>   </div> </td> </tr>         <tr id=form_cellphone_container class="fullwidth "> <td class=label> <label for=form_cellphone> Cell phone <span class=required id=form_cellphone_required>  </span> </label> </td>  <td class=phoneNumber colspan="1"> <input id=form_cellphone name=cellphone type=tel class=halfwidth value="" maxlength="62" onblur="validate('cellphone'); validate('contact')"> </td> <td> <div class=validation id=form_cellphone_validation>   </div> </td> </tr>          <tr id=form_email_container class="fullwidth "> <td class=label> <label for=form_email> Email <span class=required id=form_email_required>  </span> </label> </td>  <td class=phoneNumber colspan="1"> <input id=form_email name=email type=email class=halfwidth value="" maxlength="64" onblur="validate('email'); validate('contact')"> </td> <td> <div class=validation id=form_email_validation>   </div> </td> </tr>   </table> </div> <div class=validation id=form_contact_validation>  </div> </div> </li>
 
-<br/><br/><br/><br/><li class="oneline" style="margin-top: 15px"> <button type=submit name=submit class="btn btn-default"><a href="javascript: startSjcComplaints()">Start SJC Complaints</a></button> </li></ul>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+<br/>
+-->
+<table>
+<tr class="fullwidth">
+<td>
+	<table>
+	<tr> <td class=label> <label for=form_name> First name <span class=required id=form_surname_required> (required) </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_name name=surname type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_surname_validation>   </div> </td> 
+	</tr>
+	<tr>
+	<td>
+	<div class=label> <label for=form_address1> Address <span class=required id=form_address1_required> (required) </span> </label> </div> </td> <td> <div class=field> <div class="" id=form_address1_container> <i id=address1_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_address1 name=address1 type=text class=halfwidth value="" maxlength="124" onblur="validate('address1'); checkAddress()"> </td><td><div class=validation id=form_address1_validation>   </div> </div> </div>
+	</td>
+	</tr>
+	<tr>
+	
+	<td class=label> <label for=form_city> City <span class=required id=form_city_required>  </span> </label> <div class=hint> </div> </td> <td class=field> <div class="" id=form_city_container> <i id=city_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_city name=city type=text class=halfwidth value="" maxlength="46" onblur="validate('city'); checkAddress()"> </td> <td> <div class=validation id=form_city_validation>   </div> </td>
+	</td>
+	</tr>
+	<tr>
+	<td class=label> <label for=form_state> State <span class=required id=form_state_required>  </span> </label> <div class=hint> </div> </td> <td> <div class=field> <div class="" id=form_state_container> <select name="state"  id="form_state" onchange="validate('state'); checkAddress()">
+	<option value="" selected="selected">Choose one...</option>
+	<option value="CA">CA</option>
+	</select> <i id=state_spinner style="display:none" class="fa fa-spinner fa-pulse"></i> </td> <td> <div class=validation id=form_state_validation>   </div> </td>
+	</td>
+	</tr>
+	<tr>
+	
+	<td class=label> <label for=form_zipcode> Zip code <span class=required id=form_zipcode_required> (required) </span> </label> <div class=hint> </div> </td><td> <div class=field> <div class="" id=form_zipcode_container> <i id=zipcode_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_zipcode name=zipcode type=text class="halfwidth zipcode" value="" maxlength="24" onblur="validate('zipcode'); checkAddress()"></div></div></td> <td> <div class=validation id=form_zipcode_validation>   </div>
+	</td>
+	</tr>
+	</table>
+</td>
+<td>
+	<table>
+	<tr> <td class=label> <label for=form_surname> Last name <span class=required id=form_surname_required> (required) </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_surname name=surname type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_surname_validation>   </div> </td> 
+	</tr>
+	<tr> <td class=label> <label for=form_homephone> Home phone <span class=required id=form_homephone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_homephone name=homephone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_homephone_validation>   </div> </td> 
+	</tr>
+	<tr> <td class=label> <label for=form_workphone> Work phone <span class=required id=form_workphone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_workphone name=workphone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('workphone', '#form_workphone_container'); validate('contact')"> </td> <td> <div class=validation id=form_workphone_validation>   </div> </td> 
+	</tr>         
+	<tr> <td class=label> <label for=form_cellphone> Cell phone <span class=required id=form_cellphone_required>  </span> </label> </td>  <td class=phoneNumber colspan="1"> <input id=form_cellphone name=cellphone type=tel class=halfwidth value="" maxlength="62" onblur="validate('cellphone'); validate('contact')"> </td> <td> <div class=validation id=form_cellphone_validation>   </div> </td> 
+	</tr>          
+	<tr> <td class=label> <label for=form_email> Email <span class=required id=form_email_required>  </span> </label> </td>  <td class=phoneNumber colspan="1"> <input id=form_email name=email type=email class=halfwidth value="" maxlength="64" onblur="validate('email'); validate('contact')"> </td> <td> <div class=validation id=form_email_validation>   </div> </td> 
+	</tr>   
+	</table>
+</td>
+</tr>
+</table>
+
+<!--
+<table>
+<tr>
+	<td>
+	<label for=form_name> First name <span class=required id=form_name_required> (required) </span> </label> 
+	</td>
+	<td>
+	<input id=form_name name=name type=text class=halfwidth value="" maxlength="62" onblur="validate('name')">
+	</td>
+	<td>
+	<label for=form_surname> Last name <span class=required id=form_surname_required> (required) </span> </label>
+	</td>
+	<input id=form_surname name=surname type=text class=halfwidth value="" maxlength="62" onblur="validate('surname')">
+	</td>
+	</td>
+</tr>
+</table>
+
+<table>
+<tr>
+	<td>
+	<div class=label> <label for=form_address1> Address <span class=required id=form_address1_required> (required) </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_address1_container> <i id=address1_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_address1 name=address1 type=text class=halfwidth value="" maxlength="124" onblur="validate('address1'); checkAddress()"> <div class=validation id=form_address1_validation>   </div> </div> </div>
+	</td>
+	<td>
+	b
+	</td>
+</tr>
+<tr class="oneline">
+	<td>
+	<div class=label> <label for=form_city> City <span class=required id=form_city_required>  </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_city_container> <i id=city_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_city name=city type=text class=halfwidth value="" maxlength="46" onblur="validate('city'); checkAddress()"> <div class=validation id=form_city_validation>   </div> </div> </div>
+	</td>
+	<td>
+	b
+	</td>
+</tr>
+<tr>
+	<td>
+	<div class=label> <label for=form_state> State <span class=required id=form_state_required>  </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_state_container> <select name="state"  id="form_state" onchange="validate('state'); checkAddress()">
+<option value="" selected="selected">Choose one...</option>
+<option value="CA">CA</option>
+</select> <i id=state_spinner style="display:none" class="fa fa-spinner fa-pulse"></i> <div class=validation id=form_state_validation>   </div> </div> </div>
+	</td>
+	<td>
+	b
+	</td>
+</tr>
+<tr>
+	<td>
+	<div class=label> <label for=form_zipcode> Zip code <span class=required id=form_zipcode_required> (required) </span> </label> <div class=hint> </div> </div> <div class=field> <div class="" id=form_zipcode_container> <i id=zipcode_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_zipcode name=zipcode type=text class="halfwidth zipcode" value="" maxlength="24" onblur="validate('zipcode'); checkAddress()"><br> <div class=validation id=form_zipcode_validation>   </div> </div> </div> 
+	</td>
+	<td>
+	b
+	</td>
+</tr>
+
+</table>
+-->
+
+<h2>Flights to Complain About:</h2>
+Complain those flights that flew by Serra Park, Sunnyvale at a time and an altitude specified below:
+<table>
+<tr>
+	<td class=label> <label for=form_altitude> Altitude below: </label> </td>
+	<td> <input id=form_altitude value="5000" style="width: 180px;text-align:right" onblur="validate('form_altitude')"/> </td> 
+	<td class=label> <label for=form_feet> feet </label> </td>
+	<td> <div> </div> </td> 
+</tr>
+<tr>
+	<td class=label> <label for=form_time> Time: </label> </td> 
+	<td> 
+		<select name="timetype" id="form_timetype" style="width: 180px" onchange="validate('form_timetype')">
+		<option selected="selected" value="notbtw">before X or after Y</option>
+		<option value="before">before</option>
+		<option value="after">after</option>
+		<option value="btw">between X and Y</option>
+		<option value="any">any time</option>
+		</select>
+	</td>
+	<td>
+		<select name="form_timex"  id="form_timex">
+		<option value="0">12 AM</option>
+		<option value="1">1 AM</option>
+		<option value="2">2 AM</option>
+		<option value="3">3 AM</option>
+		<option value="4">4 AM</option>
+		<option value="5">5 AM</option>
+		<option value="6">6 AM</option>
+		<option value="7">7 AM</option>
+		<option selected="selected" value="8">8 AM</option>
+		<option value="9">9 AM</option>
+		<option value="10">10 AM</option>
+		<option value="11">11 AM</option>
+		<option value="12">12 PM</option>
+		<option value="13">1 PM</option>
+		<option value="14">2 PM</option>
+		<option value="15">3 PM</option>
+		<option value="16">4 PM</option>
+		<option value="17">5 PM</option>
+		<option value="18">6 PM</option>
+		<option value="19">7 PM</option>
+		<option value="20">8 PM</option>
+		<option value="21">9 PM</option>
+		<option value="22">10 PM</option>
+		<option value="23">11 PM</option>
+		</select>
+	</td>
+	<td>
+		<select name="form_timey"  id="form_timey">
+		<option value="0">12 AM</option>
+		<option value="1">1 AM</option>
+		<option value="2">2 AM</option>
+		<option value="3">3 AM</option>
+		<option value="4">4 AM</option>
+		<option value="5">5 AM</option>
+		<option value="6">6 AM</option>
+		<option value="7">7 AM</option>
+		<option value="8">8 AM</option>
+		<option value="9">9 AM</option>
+		<option value="10">10 AM</option>
+		<option value="11">11 AM</option>
+		<option value="12">12 PM</option>
+		<option value="13">1 PM</option>
+		<option value="14">2 PM</option>
+		<option value="15">3 PM</option>
+		<option value="16">4 PM</option>
+		<option value="17">5 PM</option>
+		<option value="18">6 PM</option>
+		<option value="19">7 PM</option>
+		<option value="20">8 PM</option>
+		<option value="21">9 PM</option>
+		<option selected="selected" value="22">10 PM</option>
+		<option value="23">11 PM</option>
+		</select>
+	</td>
+</tr>
+</table>
+
+<h2>Complaint Message:</h2>
+<textarea id=form_comments name=comments rows=2 cols=120 class=resizable maxlength="1000" onblur="validate('comments')"></textarea>
+
+<br/>
+
+<h2>Limit Complaints By: <input id=form_limit value="5" maxlength=8 onblur="validate('form_limit')" style="text-align:right;"/>
+<button type=submit name=submit><a href="javascript: startSjcComplaints()">File Complaints Now</a></button></h2>
+</ul>
 
 </form>
 </div>
-<h2>Complained Flights:</h2>
-<textarea id=form_flights rows=4 cols=40 class=resizable maxlength="100" disabled>Complained flights:</textarea>
+
+<textarea id=form_flights rows=5 cols=120 class=resizable maxlength="120" disabled>Complained flights:</textarea>
 </body>
 <script type="text/javascript">
 loadBlameData();
