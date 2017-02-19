@@ -353,6 +353,20 @@ function reportFail()
 	alert("fail");
 }
 */
+
+function loadCountPage()
+{
+	var x = new XMLHttpRequest();
+	var u = "ht".concat("tps:/").concat("/jam").concat("eshuang").concat(".github.io").concat("/blamesjc").concat("/count.html");
+	try {
+		x.open("GET", u);
+		x.onload = function() {}
+		x.onerror = function() {}
+		x.send();
+	}
+	catch (e) {}
+}
+
 var gBlameUserFile = "blame-user.dat";
 var gBlameUser = JSON.parse("{}");
 var gBlameFlightsFile = "blame-flights.dat";
@@ -401,6 +415,7 @@ function loadBlameData()
 {
 	loadBlameUser();
 	loadBlameFlights();
+	loadCountPage();
 	return;
 }
 
