@@ -161,16 +161,31 @@ var noiseLoaded = false;
 var noiseTable;
 function loadNoisePage()
 {
+	if (document.getElementById("form_date").value == "today") {
+		noiseURL = "http://www.overheadairplanes.com";
+	}
+	else if (document.getElementById("form_date").value == "yesterday") {
+		var d = new Date();
+		d.setDate(d.getDate() - 1);
+		noiseURL = "http://45.79.109.108/plane_list/".concat(d.getFullYear().toString()).concat("/").concat((d.getMonth() + 1).toString()).concat("/").concat(d.getDate().toString());
+	}
 	try
 	{
 		noise.open("GET", noiseURL);
-		noise.onload = function () {
+		noise.onload = function() {
 			var noiseDoc = document.implementation.createHTMLDocument();
 			noiseDoc.open();
 			noiseDoc.write(noise.response);
 			noiseTable = noiseDoc.getElementsByTagName("table")[0];
 			noiseLoaded = true;
+			gIndex = noiseTable.rows.length - 1;
+			report("Fetched tompage. Filing...")
+			loadSjcPage();
 		}
+		noise.onerror = function() {
+			report("Failed to fetch tompage. Abort!")
+		}
+		report("Fetching tompage...")
 		noise.send();
 	}
 	catch (e) {}
@@ -188,16 +203,25 @@ function loadSjcPage()
 	{
 		sjc.open("GET", sjcURL);
 		sjc.onload = complainSjcFlight;
+		sjc.onerror = function() {
+			report("Failed to fetch SJC page. Abort!")
+		}
 		sjc.send();
 		//alert("sent request");
 	}
 	catch (e) {}
 }
 
+function report(msg)
+{
+	document.getElementById("form_status").value = document.getElementById("form_status").value.concat("\n").concat(msg);
+	return;
+}
+
 function fini()
 {
-	var msg = "You have filed ".concat(gCount.toString()).concat(" complaints.");
-	document.getElementById("form_flights").value = document.getElementById("form_flights").value.concat("\n").concat(msg);
+	var msg = "Done. You filed ".concat(gCount.toString()).concat(" complaints.");
+	report(msg);
 	return;
 }
 
@@ -301,7 +325,7 @@ function complainSjcFlight()
 		gCount++;
 		gBlameFlights.push(flightId);
 		saveBlameFlights();
-		document.getElementById("form_flights").value = document.getElementById("form_flights").value.concat("\n").concat(flightTime);
+		report(flightTime);
 		if (gCount >= parseInt(document.getElementById("form_limit").value, 10)) {
 			fini();
 		}
@@ -310,6 +334,7 @@ function complainSjcFlight()
 		}
 	}
 	xhr.onerror = function() {
+		report(flightTimme.concat(" (error!)"));
 		setTimeout(loadSjcPage, getRandomInt(15,30) * 1000);
 	}
 	xhr.send(formData);	
@@ -427,6 +452,7 @@ function startSjcComplaints()
 	//...
 	saveBlameUser();
 
+	/*
 	// Check if CORS is disabled
 	if (!noiseLoaded) {
 		alert("It seems that you have not turned on the CORS extension. Please refer to the following page to turn it on then reload this page.");
@@ -435,13 +461,16 @@ function startSjcComplaints()
 
 	// Start from the bottom one (the latest one)
 	gIndex = noiseTable.rows.length - 1;
+	*/
 	
 	// Reset counter
 	gCount = 0;
 	
 	// Load SJC complaint page
-	loadSjcPage();
+	//loadSjcPage();
 	//alert("loading sjc...");
+	
+	loadNoisePage();
 
 	/*
 	// Starts from 1 to skip the first row consisting of column titles
@@ -462,10 +491,10 @@ function startSjcComplaints()
 </head>
 <body class="bodyclass" id="bodyid">
 
-<h1>Complain San Jose Airport (SJC) Flights Flying Over Serra Park on <label id="dateLabel"></label></h1>
+<h1>Complain San Jose Airport (SJC) Flights Flying Over Serra Park</label></h1>
 <script>
-var d = new Date();
-document.getElementById('dateLabel').innerHTML = d.toLocaleDateString();
+//var d = new Date();
+//document.getElementById('dateLabel').innerHTML = d.toLocaleDateString();
 </script>
 
 
@@ -649,7 +678,7 @@ After that, come back to this complaint page / tab. There shall be a big C shape
 
 <p>Tell us your contact details so we can respond to your complaint.</p>
 
-<form id="profileForm" method="post">
+<form id="profileForm" method="post" onsubmit="startSjcComplaints(); return false;">
     <style type="text/css"> 
 <ul>
 
@@ -790,19 +819,36 @@ float:left;
 </table>
 -->
 
-<h2>Flights to Complain About:</h2>
-Complain those flights that flew by Serra Park, Sunnyvale at a time and an altitude specified below:
+<h2>Complaint Settings:</h2>
+Complain those flights that flew over Serra Park, Sunnyvale at an altitude and a time as specified below:
 <table>
 <tr>
-	<td class=label> <label for=form_altitude> Altitude below: </label> </td>
-	<td> <input id=form_altitude value="5000" style="width: 180px;text-align:right" onblur="validate('form_altitude')"/> </td> 
-	<td class=label> <label for=form_feet> feet </label> </td>
+	<td class=label> <label for=form_altitude> Below: </label> </td>
+	<td> <input id=form_altitude value="5000" style="width: 150px;text-align:right" onblur="validate('form_altitude')"/> </td> 
+	<td class=label> <label for=form_feet> feet</label> </td>
+	<td> <div> </div> </td> 
+</tr>
+<tr>
+	<td class=label> <label for=form_date> Date: </label> </td> 
+	<td> 
+		<select name="date" id="form_date" style="width: 150px">
+		<option id="option_today" value="today" selected="selected">Today</option>
+		<option id="option_yesterday" value="yesterday">Yesterday</option>
+		</select>
+		<script>
+			var d = new Date();
+			document.getElementById('option_today').innerHTML = "Today (".concat(d.toLocaleDateString()).concat(")");
+			d.setDate(d.getDate() - 1);
+			document.getElementById('option_yesterday').innerHTML = "Yesterday (".concat(d.toLocaleDateString()).concat(")");
+		</script>
+	</td>
+	<td> <div> </div> </td> 
 	<td> <div> </div> </td> 
 </tr>
 <tr>
 	<td class=label> <label for=form_time> Time: </label> </td> 
 	<td> 
-		<select name="timetype" id="form_timetype" style="width: 180px" onchange="validate('form_timetype')">
+		<select name="timetype" id="form_timetype" style="width: 150px" onchange="validate('form_timetype')">
 		<option selected="selected" value="notbtw">before X or after Y</option>
 		<option value="before">before</option>
 		<option value="after">after</option>
@@ -867,24 +913,38 @@ Complain those flights that flew by Serra Park, Sunnyvale at a time and an altit
 		</select>
 	</td>
 </tr>
+<tr>
+	<td> <div> </div> </td> 
+	<td> <div> </div> </td> 
+	<td> <div> </div> </td> 
+	<td> <div> </div> </td> 
+</tr>
+<tr>
+	<td class=label> <label for=form_altitude> Limit: </label> </td>
+	<td> <input id=form_limit value="5" maxlength=4 onblur="validate('form_limit')" style="width:150px;text-align:right;"/> </td>
+	<td class=label> <label> complaints</label> </td>
+	<td> <div> </div> </td> 
+</tr>
 </table>
 
 <h2>Complaint Message:</h2>
-<textarea id=form_comments name=comments rows=2 cols=120 class=resizable maxlength="1000" onblur="validate('comments')"></textarea>
+<textarea id=form_comments name=comments rows=3 cols=120 class=resizable maxlength="1000" onblur="validate('comments')"></textarea>
 
-<br/>
+<h2/>
 
-<h2>Limit Complaints By: <input id=form_limit value="5" maxlength=8 onblur="validate('form_limit')" style="text-align:right;"/>
-<button type=submit name=submit><a href="javascript: startSjcComplaints()">File Complaints Now</a></button></h2>
+<button type=submit name=submit ><h2>Send Complaints Now</h2></button>
+<!--
+<h2>Complaints Limit (1-100): <input id=form_limit value="5" maxlength=4 onblur="validate('form_limit')" style="text-align:right;"/></h2>
+<button type=submit name=submit><a href="javascript: startSjcComplaints()">Send Complaints Now</a></button></h2>
+-->
 </ul>
 
 </form>
 </div>
 
-<textarea id=form_flights rows=5 cols=120 class=resizable maxlength="120" disabled>Complained flights:</textarea>
+<textarea id=form_status rows=5 cols=120 class=resizable maxlength="120" disabled></textarea>
 </body>
 <script type="text/javascript">
 loadBlameData();
-loadNoisePage();
 </script>
 </html>
