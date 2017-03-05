@@ -168,7 +168,8 @@ var noiseTable;
 function loadNoisePage()
 {
 	if (document.getElementById("form_date").value == "today") {
-		noiseURL = "http://www.overheadairplanes.com";
+		//noiseURL = "http://www.overheadairplanes.com";
+		noiseURL = "/planedb.html"
 		//noiseURL = "/planedb.html";
 	}
 	else if (document.getElementById("form_date").value == "yesterday") {
@@ -613,7 +614,7 @@ float:left;
 <tr class="fullwidth">
 <td>
 	<table>
-	<tr> <td class=label> <label for=form_name>First name <span class=required id=form_surname_required> (required) </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_name name=surname type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_surname_validation>   </div> </td> 
+	<tr> <td class=label> <label for=form_name>First name <span class=required id=form_surname_required> (required) </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_name name=surname type=text class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_surname_validation>   </div> </td> 
 	</tr>
 	<tr>
 	<td>
@@ -628,20 +629,20 @@ float:left;
 	<tr>
 	<td class=label> <label for=form_state>State <span class=required id=form_state_required>  </span> </label> <div class=hint> </div> </td> <td> <div class=field> <div class="" id=form_state_container> <select name="state"  id="form_state" onchange="validate('state'); checkAddress()">
 	<option value="" selected="selected">Choose one...</option>
-	<option value="CA">CA</option>
+	<option value="CA" selected="selected">CA</option>
 	</select> <i id=state_spinner style="display:none" class="fa fa-spinner fa-pulse"></i> </td> <td> <div class=validation id=form_state_validation>   </div> </td>
 	</td>
 	</tr>
 	<tr>
 	
-	<td class=label> <label for=form_zipcode>Zip code <span class=required id=form_zipcode_required> (required) </span> </label> <div class=hint> </div> </td><td> <div class=field> <div class="" id=form_zipcode_container> <i id=zipcode_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_zipcode name=zipcode type=text class="halfwidth zipcode" value="" maxlength="24" onblur="validate('zipcode'); checkAddress()"></div></div></td> <td> <div class=validation id=form_zipcode_validation>   </div>
+	<td class=label> <label for=form_zipcode>Zip code <span class=required id=form_zipcode_required> (required) </span> </label> <div class=hint> </div> </td><td> <div class=field> <div class="" id=form_zipcode_container> <i id=zipcode_spinner style="display:none" class="fa fa-spinner fa-pulse spinner"></i><input id=form_zipcode name=zipcode type=tel class="halfwidth zipcode" value="" maxlength="24" onblur="validate('zipcode'); checkAddress()"></div></div></td> <td> <div class=validation id=form_zipcode_validation>   </div>
 	</td>
 	</tr>
 	</table>
 </td>
 <td>
 	<table>
-	<tr> <td class=label> <label for=form_surname> Last name <span class=required id=form_surname_required> (required) </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_surname name=surname type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_surname_validation>   </div> </td> 
+	<tr> <td class=label> <label for=form_surname> Last name <span class=required id=form_surname_required> (required) </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_surname name=surname type=text class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_surname_validation>   </div> </td> 
 	</tr>
 	<tr> <td class=label> <label for=form_homephone> Home phone <span class=required id=form_homephone_required>  </span> </label> </td>  <td class=phoneNumber colspan=1> <input id=form_homephone name=homephone type=tel class=halfwidth value="" maxlength="62" onblur="validateGroup('homephone', '#form_homephone_container'); validate('contact')"> </td> <td> <div class=validation id=form_homephone_validation>   </div> </td> 
 	</tr>
@@ -664,7 +665,7 @@ Filter the flights that flew over Serra Park, Sunnyvale based on the criteria be
 <table>
 <tr>
 	<td class=label> <label for=form_altitude> Below:</label> </td>
-	<td> <input id=form_altitude value="5000" style="width: 40px;text-align:right" onblur="validate('form_altitude')"/> </td> 
+	<td> <input id=form_altitude value="5000" type=tel style="width: 40px;text-align:right" onblur="validate('form_altitude')"/> </td> 
 	<td class=label> <label for=form_feet>feet</label> </td>
 	<td> <div> </div> </td> 
 
@@ -751,7 +752,7 @@ Filter the flights that flew over Serra Park, Sunnyvale based on the criteria be
 		</select>
 	</td>
 	<td> <label for=form_altitude> Limit:</label></td>
-	<td> <input id=form_limit value="5" style="width:30px;text-align:right;" onblur="validate('form_limit')"/> </td>
+	<td> <input id=form_limit value="5" type=tel style="width:30px;text-align:right;" onblur="validate('form_limit')"/> </td>
 </tr>
 </table>
 <!--
@@ -777,7 +778,7 @@ Filter the flights that flew over Serra Park, Sunnyvale based on the criteria be
 </div>
 
 <form id="profileForm" method="post" onsubmit="startComplaints(); return false;" >
-	<button type=submit name=submit ><h2><font color="red">Send Complaints Now</font></h2></button>
+	<button type=submit name=submit style="font-size:larger;color:red">Send Complaints Now</button>
 </form>
 
 </div>
